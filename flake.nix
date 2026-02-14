@@ -20,19 +20,26 @@
     nixosConfigurations.openclaw-vm = nixpkgs.lib.nixosSystem {
       system = "x86_64-linux";
       modules = [
-        ({ modulesPath, pkgs, ... }: {
+        ({ modulesPath, pkgs, lib, ... }: {
           imports = [ 
             "${modulesPath}/virtualisation/qemu-vm.nix"
             home-manager.nixosModules.home-manager
           ];
           
           # Apply openclaw overlay to get pkgs.openclaw
-          nixpkgs.config.allowUnfree = true;
           nixpkgs.overlays = [ nix-openclaw.overlays.default ];
+          nixpkgs.config.allowUnfree = true;
           
           # Minimal system
           boot.kernelParams = [ "console=ttyS0" ];
           networking.hostName = "openclaw-vm";
+          
+          # Disable networking
+          networking.useDHCP = false;
+          networking.interfaces = {};
+          networking.firewall.enable = true;
+          networking.networkmanager.enable = false;
+          networking.wireless.enable = false;
           
           # User setup
           users.users.nixos = {
@@ -43,7 +50,7 @@
           security.sudo.wheelNeedsPassword = false;
           services.getty.autologinUser = "nixos";
           
-          # Ollama with CUDA
+          # Ollama with CUDA (starts automatically)
           services.ollama = {
             enable = true;
             package = pkgs.ollama-cuda;
@@ -64,6 +71,9 @@
             memorySize = 32768;
             cores = 16;
             graphics = false;
+            
+            # Completely disable networking
+            qemu.networkingOptions = lib.mkForce [];
             
             qemu.options = [
               "-nographic"
