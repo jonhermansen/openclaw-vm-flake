@@ -10,7 +10,10 @@
       nixpkgs = nix-openclaw.inputs.nixpkgs;
       home-manager = nix-openclaw.inputs.home-manager;
       system = "x86_64-linux";
-      pkgs = import nixpkgs { inherit system; };
+      pkgs = import nixpkgs { 
+        inherit system;
+        config.allowUnfree = true;  # Allow CUDA for ollama-cuda
+      };
 
       # Fetch llama3.2:3b manifest and blobs into nix store
       llama32-3b-manifest = pkgs.fetchurl {
@@ -65,6 +68,9 @@
           # Minimal system
           boot.kernelParams = [ "console=ttyS0" ];
           networking.hostName = "openclaw-vm";
+          
+          # Open IRC port in firewall
+          networking.firewall.allowedTCPPorts = [ 6667 ];
 
           # User setup
           users.users.nixos = {
@@ -83,7 +89,8 @@
             settings.PasswordAuthentication = true;
           };
 
-          # IRC server for control (ngircd) - minimal config, no auth
+          # IRC server for control (ngircd) - minimal config, no auth, listen on all interfaces
+          # Disable ident and DNS to avoid connection delays from NAT
           services.ngircd = {
             enable = true;
             config = ''
@@ -92,10 +99,13 @@
               AdminInfo1 = OpenClaw VM
               AdminInfo2 = Local Control
               AdminEMail = root@localhost
+              Listen = 0.0.0.0
               
               [Options]
               PAM = no
               RequireAuthPing = no
+              Ident = no
+              DNS = no
             '';
           };
 
@@ -133,6 +143,9 @@
             programs.openclaw = {
               enable = true;
               
+              # Enable systemd service to start automatically
+              systemd.enable = true;
+              
               # Main config (schema-typed)
               config = {
                 gateway = {
@@ -151,8 +164,8 @@
                   providers = {
                     "custom-127-0-0-1-11434" = {
                       auth = "api-key";
-                      # JAH TODO: null or empty string should be allowed here
-                      # JAH TODO: but it gets rejected at runtime
+                      # Ollama doesn't require auth for local connections, but OpenClaw
+                      # requires a non-empty apiKey at runtime. The value is ignored by Ollama.
                       apiKey = "fake-api-key";
                       baseUrl = "http://127.0.0.1:11434/v1";
                       api = "openai-completions";
@@ -205,6 +218,9 @@
                 };
               };
             };
+
+            # Ensure the openclaw-gateway service is enabled and starts automatically
+            systemd.user.services.openclaw-gateway.Install.WantedBy = lib.mkForce [ "default.target" ];
           };
 
           # VM configuration
