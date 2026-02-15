@@ -1,0 +1,73 @@
+{
+  "models": {
+    "mode": "merge",
+    "providers": {
+      "custom-127-0-0-1-11434": {
+        "baseUrl": "http://127.0.0.1:11434/v1",
+        "api": "openai-completions",
+        "models": [
+          {
+            "id": "llama3.2:3b",
+            "name": "llama3.2:3b (Custom Provider)",
+            "reasoning": false,
+            "input": [
+              "text"
+            ],
+            "cost": {
+              "input": 0,
+              "output": 0,
+              "cacheRead": 0,
+              "cacheWrite": 0
+            },
+            "contextWindow": 4096,
+            "maxTokens": 4096
+          }
+        ]
+      }
+    }
+  },
+  "agents": {
+    "defaults": {
+      "model": {
+        "primary": "custom-127-0-0-1-11434/llama3.2:3b"
+      },
+      "models": {
+        "custom-127-0-0-1-11434/llama3.2:3b": {
+          "alias": "local"
+        }
+      },
+      "workspace": "/home/nixos/.openclaw/workspace"
+    }
+  },
+  "commands": {
+    "native": "auto",
+    "nativeSkills": "auto"
+  },
+  "gateway": {
+    "port": 18789,
+    "mode": "local",
+    "bind": "loopback",
+    "auth": {
+      "mode": "token",
+      "token": "12f48a6d01ac71012ae2d50b60413d4bbb3a3a8aea927cc1"
+    },
+    "tailscale": {
+      "mode": "off",
+      "resetOnExit": false
+    },
+    "nodes": {
+      "denyCommands": [
+        "camera.snap",
+        "camera.clip",
+        "screen.record",
+        "calendar.add",
+        "contacts.add",
+        "reminders.add"
+      ]
+    }
+  },
+  "meta": {
+    "lastTouchedVersion": "2026.2.13",
+    "lastTouchedAt": "2026-02-15T04:11:09.463Z"
+  }
+}
