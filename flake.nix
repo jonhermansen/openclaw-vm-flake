@@ -71,6 +71,7 @@
             isNormalUser = true;
             extraGroups = [ "wheel" ];
             initialPassword = "nixos";
+            linger = true;  # Enable systemd user services at boot
           };
           security.sudo.wheelNeedsPassword = false;
           services.getty.autologinUser = "nixos";
@@ -103,6 +104,9 @@
             enable = true;
             package = pkgs.ollama-cuda;
             models = "/var/lib/ollama/models";
+            environmentVariables = {
+              OLLAMA_NO_CLOUD = "1";
+            };
           };
 
           # Install model blobs into ollama's structure
@@ -141,11 +145,15 @@
                   };
                 };
                 
-                # Configure local ollama model
+                # Configure local ollama model (let ollama report context window)
                 models = {
                   mode = "merge";
                   providers = {
                     "custom-127-0-0-1-11434" = {
+                      auth = "api-key";
+                      # JAH TODO: null or empty string should be allowed here
+                      # JAH TODO: but it gets rejected at runtime
+                      apiKey = "fake-api-key";
                       baseUrl = "http://127.0.0.1:11434/v1";
                       api = "openai-completions";
                       models = [{
@@ -159,8 +167,6 @@
                           cacheRead = 0;
                           cacheWrite = 0;
                         };
-                        contextWindow = 4096;
-                        maxTokens = 4096;
                       }];
                     };
                   };
