@@ -34,13 +34,6 @@
           boot.kernelParams = [ "console=ttyS0" ];
           networking.hostName = "openclaw-vm";
           
-          # Disable networking
-          networking.useDHCP = false;
-          networking.interfaces = {};
-          networking.firewall.enable = true;
-          networking.networkmanager.enable = false;
-          networking.wireless.enable = false;
-          
           # User setup
           users.users.nixos = {
             isNormalUser = true;
@@ -72,12 +65,13 @@
             cores = 16;
             graphics = false;
             
-            # Completely disable networking
+            # Completely disable networking - no NIC hardware at all
             qemu.networkingOptions = lib.mkForce [];
             
             qemu.options = [
               "-nographic"
               "-serial mon:stdio"
+              "-net none"  # Explicitly disable all network backends
             ];
           };
           
