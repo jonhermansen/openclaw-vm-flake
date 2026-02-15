@@ -75,6 +75,13 @@
           security.sudo.wheelNeedsPassword = false;
           services.getty.autologinUser = "nixos";
 
+          # Enable SSH for debugging
+          services.openssh = {
+            enable = true;
+            settings.PermitRootLogin = "yes";
+            settings.PasswordAuthentication = true;
+          };
+
           # IRC server for control (ngircd) - minimal config, no auth
           services.ngircd = {
             enable = true;
@@ -109,18 +116,89 @@
             "L+ /var/lib/ollama/models/blobs/sha256-fcc5a6bec9daf9b561a68827b67ab6088e1dba9d1fa2a50d7bbcc8384e0a265d - - - - ${llama32-3b-blob-4}"
             "L+ /var/lib/ollama/models/blobs/sha256-a70ff7e570d97baaf4e62ac6e6ad9975e04caa6d900d3742d37698494479e0cd - - - - ${llama32-3b-blob-5}"
             "L+ /var/lib/ollama/models/blobs/sha256-56bb8bd477a519ffa694fc449c2413c6f0e1d3b1c88fa7e3c9d88d3ae49d4dcb - - - - ${llama32-3b-blob-6}"
-            # Create openclaw config directory (writable)
-            "d /home/nixos/.openclaw 0755 nixos nixos -"
-            "C /home/nixos/.openclaw/openclaw.json 0644 nixos nixos - ${./openclaw.json}"
           ];
 
-          # Home-manager + OpenClaw
+          # Home-manager + OpenClaw with declarative config
           home-manager.useGlobalPkgs = true;
           home-manager.useUserPackages = true;
           home-manager.users.nixos = {
             home.stateVersion = "26.05";
             imports = [ nix-openclaw.homeManagerModules.openclaw ];
-            programs.openclaw.enable = true;
+            
+            # Declarative OpenClaw configuration
+            programs.openclaw = {
+              enable = true;
+              
+              # Main config (schema-typed)
+              config = {
+                gateway = {
+                  mode = "local";
+                  port = 18789;
+                  bind = "loopback";
+                  auth = {
+                    mode = "token";
+                    token = "da60c496bba969bd8e1a3ff6ae7b177eb8cf47033f35bb05";
+                  };
+                };
+                
+                # Configure local ollama model
+                models = {
+                  mode = "merge";
+                  providers = {
+                    "custom-127-0-0-1-11434" = {
+                      baseUrl = "http://127.0.0.1:11434/v1";
+                      api = "openai-completions";
+                      models = [{
+                        id = "llama3.2:3b";
+                        name = "llama3.2:3b (Local)";
+                        reasoning = false;
+                        input = [ "text" ];
+                        cost = {
+                          input = 0;
+                          output = 0;
+                          cacheRead = 0;
+                          cacheWrite = 0;
+                        };
+                        contextWindow = 4096;
+                        maxTokens = 4096;
+                      }];
+                    };
+                  };
+                };
+                
+                agents = {
+                  defaults = {
+                    workspace = "/home/nixos/.openclaw/workspace";
+                    model = {
+                      primary = "custom-127-0-0-1-11434/llama3.2:3b";
+                    };
+                  };
+                };
+                
+                # IRC configuration
+                channels = {
+                  irc = {
+                    enabled = true;
+                    host = "localhost";
+                    port = 6667;
+                    tls = false;
+                    nick = "openclaw";
+                    username = "openclaw";
+                    realname = "OpenClaw";
+                    channels = [ "#openclaw" ];
+                    dmPolicy = "open";
+                    allowFrom = [ "*" ];  # Required for dmPolicy="open"
+                    groupPolicy = "open";
+                    groups = {
+                      "*" = {
+                        requireMention = false;
+                        allowFrom = [ "*" ];
+                      };
+                    };
+                  };
+                };
+              };
+            };
           };
 
           # VM configuration
@@ -129,13 +207,13 @@
             cores = 4;          # 4 cores default
             graphics = false;
 
-            # Port forward IRC (6667) from host to guest
-            # Host connects to localhost:6667, forwarded to VM
+            # Port forward IRC and SSH from host to guest
             forwardPorts = [
               { from = "host"; host.port = 6667; guest.port = 6667; }
+              { from = "host"; host.port = 2222; guest.port = 22; }
             ];
-
-            # Restrict network access
+            
+            # Restrict network access (guest can only reach host gateway)
             restrictNetwork = true;
             
             qemu.options = [
