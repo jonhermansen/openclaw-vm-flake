@@ -1,4 +1,10 @@
 {
+  "wizard": {
+    "lastRunAt": "2026-02-15T04:55:58.501Z",
+    "lastRunVersion": "2026.2.13",
+    "lastRunCommand": "onboard",
+    "lastRunMode": "local"
+  },
   "models": {
     "mode": "merge",
     "providers": {
@@ -32,9 +38,7 @@
         "primary": "custom-127-0-0-1-11434/llama3.2:3b"
       },
       "models": {
-        "custom-127-0-0-1-11434/llama3.2:3b": {
-          "alias": "local"
-        }
+        "custom-127-0-0-1-11434/llama3.2:3b": {}
       },
       "workspace": "/home/nixos/.openclaw/workspace"
     }
@@ -43,13 +47,40 @@
     "native": "auto",
     "nativeSkills": "auto"
   },
+  "hooks": {
+    "internal": {
+      "enabled": true,
+      "entries": {
+        "boot-md": {
+          "enabled": true
+        }
+      }
+    }
+  },
+  "channels": {
+    "irc": {
+      "enabled": true,
+      "host": "localhost",
+      "port": 6667,
+      "tls": false,
+      "nick": "openclaw",
+      "username": "openclaw",
+      "realname": "OpenClaw",
+      "channels": [
+        "#openclaw"
+      ],
+      "dmPolicy": "pairing",
+      "groupPolicy": "open",
+      "groups": {}
+    }
+  },
   "gateway": {
     "port": 18789,
     "mode": "local",
     "bind": "loopback",
     "auth": {
       "mode": "token",
-      "token": "12f48a6d01ac71012ae2d50b60413d4bbb3a3a8aea927cc1"
+      "token": "da60c496bba969bd8e1a3ff6ae7b177eb8cf47033f35bb05"
     },
     "tailscale": {
       "mode": "off",
@@ -66,8 +97,15 @@
       ]
     }
   },
+  "plugins": {
+    "entries": {
+      "irc": {
+        "enabled": true
+      }
+    }
+  },
   "meta": {
     "lastTouchedVersion": "2026.2.13",
-    "lastTouchedAt": "2026-02-15T04:11:09.463Z"
+    "lastTouchedAt": "2026-02-15T04:55:58.517Z"
   }
 }

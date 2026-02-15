@@ -5,13 +5,13 @@
     nix-openclaw.url = "github:openclaw/nix-openclaw";
   };
 
-  outputs = { self, nix-openclaw }: 
+  outputs = { self, nix-openclaw }:
     let
       nixpkgs = nix-openclaw.inputs.nixpkgs;
       home-manager = nix-openclaw.inputs.home-manager;
       system = "x86_64-linux";
       pkgs = import nixpkgs { inherit system; };
-      
+
       # Fetch llama3.2:3b manifest and blobs into nix store
       llama32-3b-manifest = pkgs.fetchurl {
         url = "https://registry.ollama.ai/v2/library/llama3.2/manifests/3b";
@@ -43,7 +43,7 @@
       };
     in {
     packages.x86_64-linux.default = self.nixosConfigurations.openclaw-vm.config.system.build.vm;
-    
+
     apps.x86_64-linux.default = {
       type = "app";
       program = "${self.packages.x86_64-linux.default}/bin/run-openclaw-vm-vm";
@@ -53,19 +53,19 @@
       system = "x86_64-linux";
       modules = [
         ({ modulesPath, pkgs, lib, ... }: {
-          imports = [ 
+          imports = [
             "${modulesPath}/virtualisation/qemu-vm.nix"
             home-manager.nixosModules.home-manager
           ];
-          
+
           # Apply openclaw overlay to get pkgs.openclaw
           nixpkgs.overlays = [ nix-openclaw.overlays.default ];
           nixpkgs.config.allowUnfree = true;
-          
+
           # Minimal system
           boot.kernelParams = [ "console=ttyS0" ];
           networking.hostName = "openclaw-vm";
-          
+
           # User setup
           users.users.nixos = {
             isNormalUser = true;
@@ -74,15 +74,31 @@
           };
           security.sudo.wheelNeedsPassword = false;
           services.getty.autologinUser = "nixos";
-          
+
+          # IRC server for control (ngircd) - minimal config, no auth
+          services.ngircd = {
+            enable = true;
+            config = ''
+              [Global]
+              Name = irc.openclaw.local
+              AdminInfo1 = OpenClaw VM
+              AdminInfo2 = Local Control
+              AdminEMail = root@localhost
+              
+              [Options]
+              PAM = no
+              RequireAuthPing = no
+            '';
+          };
+
           # Ollama with CUDA - use pre-fetched model
           services.ollama = {
             enable = true;
             package = pkgs.ollama-cuda;
             models = "/var/lib/ollama/models";
           };
-          
-          # Install model blobs into ollama's structure: models/blobs/sha256-{digest}
+
+          # Install model blobs into ollama's structure
           systemd.tmpfiles.rules = [
             "d /var/lib/ollama/models/manifests/registry.ollama.ai/library/llama3.2 0755 - - -"
             "d /var/lib/ollama/models/blobs 0755 - - -"
@@ -93,8 +109,11 @@
             "L+ /var/lib/ollama/models/blobs/sha256-fcc5a6bec9daf9b561a68827b67ab6088e1dba9d1fa2a50d7bbcc8384e0a265d - - - - ${llama32-3b-blob-4}"
             "L+ /var/lib/ollama/models/blobs/sha256-a70ff7e570d97baaf4e62ac6e6ad9975e04caa6d900d3742d37698494479e0cd - - - - ${llama32-3b-blob-5}"
             "L+ /var/lib/ollama/models/blobs/sha256-56bb8bd477a519ffa694fc449c2413c6f0e1d3b1c88fa7e3c9d88d3ae49d4dcb - - - - ${llama32-3b-blob-6}"
+            # Create openclaw config directory (writable)
+            "d /home/nixos/.openclaw 0755 nixos nixos -"
+            "C /home/nixos/.openclaw/openclaw.json 0644 nixos nixos - ${./openclaw.json}"
           ];
-          
+
           # Home-manager + OpenClaw
           home-manager.useGlobalPkgs = true;
           home-manager.useUserPackages = true;
@@ -103,23 +122,28 @@
             imports = [ nix-openclaw.homeManagerModules.openclaw ];
             programs.openclaw.enable = true;
           };
-          
+
           # VM configuration
           virtualisation = {
-            memorySize = 32768;
-            cores = 16;
+            memorySize = 8192;  # 8GB default
+            cores = 4;          # 4 cores default
             graphics = false;
-            
-            # Completely disable networking - no NIC hardware at all
-            qemu.networkingOptions = lib.mkForce [];
+
+            # Port forward IRC (6667) from host to guest
+            # Host connects to localhost:6667, forwarded to VM
+            forwardPorts = [
+              { from = "host"; host.port = 6667; guest.port = 6667; }
+            ];
+
+            # Restrict network access
+            restrictNetwork = true;
             
             qemu.options = [
               "-nographic"
               "-serial mon:stdio"
-              "-net none"  # Explicitly disable all network backends
             ];
           };
-          
+
           system.stateVersion = "26.05";
         })
       ];
